@@ -5,11 +5,86 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  models: "User, Resume, JobDescription, AnalysisRun"
+}
+
+//SCHEMA
+
+// User details 
+model User { 
+  id           String @id @default(uuid())
+  name         String?
+  email        String @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  resumes       Resume[]
+  jobDescriptions JobDescription[]
+  analysisRuns   AnalysisRun[]
+}
+
+//Each Resume details 
+model Resume { 
+  id        String @id @default(uuid())
+  title     String
+  rawText   String @db.Text
+  tags      String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  //Foreign Keys
+  userId    String 
+  user      User @relation(fields: [userId], references: [id])
+
+  analysisRuns AnalysisRun[]
+}
+
+model JobDescription {  
+  id        String @id @default(uuid())
+  title     String
+  rawText   String @db.Text
+  tags      String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  //Foreign Keys
+  userId    String 
+  user      User @relation(fields: [userId], references: [id])
+
+  analysisRuns AnalysisRun[]
+}
+
+model AnalysisRun { 
+
+  id                String @id @default(uuid())
+	overallScore      Int  
+	probabilityScore  Float  
+	signals           Json 
+	matchedSkills     String[] 
+	missingSkills     String[]
+	highImpactMissing String[]
+	explanation       String[]
+	debug             Json? 
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  //Foreign Keys
+  userId            String 
+  user              User @relation(fields: [userId], references: [id])
+
+  resumeId          String 
+  resume            Resume @relation(fields: [resumeId], references: [id])
+
+	jobDescriptionId  String
+  jobDescription    JobDescription @relation(fields: [jobDescriptionId], references: [id])
+
+  @@index([userId])
+  @@index([resumeId])
+  @@index([jobDescriptionId])
+
 }
