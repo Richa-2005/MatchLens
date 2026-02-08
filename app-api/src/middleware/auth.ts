@@ -5,12 +5,12 @@ import {Request, Response , NextFunction} from 'express';
 declare global {
   namespace Express {
     interface Request {
-      userId?: JwtPayload;
+      user?: JwtPayload;
     }
   }
 }
 
-export const protect = (req : Request ,res : Response,next : NextFunction) : void => {
+export const protect = (req : Request ,res : Response,next : NextFunction)  => {
     let token : string | undefined;  //either the headers have the token or not 
     
     if(req.headers.authorization && req.headers.authorization.startsWith('Bearer')){
@@ -19,15 +19,15 @@ export const protect = (req : Request ,res : Response,next : NextFunction) : voi
 
             const decoded = jwt.verify(token,process.env.JWT_SECRET as string) as JwtPayload;
 
-            req.userId = decoded; 
+            req.user = decoded; 
 
-            next();
+            return next();
         }catch(error){
             console.error(error);
             res.status(401).json({error:"Not authorized, token failed"});
         }
     }
-    if(!token){
-        res.status(401).json({error:"Not authorized, no token"});
-    }
+    
+    return res.status(401).json({error:"Not authorized, no token"});
+    
 }
