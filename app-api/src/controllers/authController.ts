@@ -2,14 +2,17 @@ import { Request, Response } from 'express';
 import  { prisma } from '../lib/prisma'; //import the prisma client instance 
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { assertAuthenticated } from "../types/auth";
 
 export const loginUser = async(req : Request,res : Response) => {
-    const {email,password} = req.body;
-
-    if (!email || !password) {
-        return res.status(400).json({ error: "Email and password are required." });
-    }
+    
     try{
+        const {email,password} = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ error: "Email and password are required." });
+        }
+
         //first find if user exists
         const user = await prisma.user.findUnique({
             where : {
@@ -40,7 +43,8 @@ export const loginUser = async(req : Request,res : Response) => {
             { expiresIn: '7d' }
         )
 
-        //send the token and user details in response
+        //send the token and user details in response -> 
+        //user token is then stored in req.headers.authorization in frontend and sent with every request to protected routes 
         res.json({
             token,
             user: {
@@ -94,11 +98,10 @@ export const registerUser = async(req : Request, res: Response) => {
 
 export const meUser = async(req:Request, res:Response) => {
     try{
-        const userId = req.user;
-        if(!userId){
-            return res.status(401).json({error:"Unauthorized User"});
-        }
+        assertAuthenticated(req); //Makes requests 's type is AuthenticatedRequest or not.
 
+        const userId = req.user;
+        
         const user = await prisma.user.findUnique({
             where : {
                 id : userId.userId
@@ -115,8 +118,11 @@ export const meUser = async(req:Request, res:Response) => {
             return res.status(404).json({error:"User not found"});
         }
         res.status(200).json(user);
-    }catch(error){
-        console.log(error);
-        res.status(500).json({error:"Internal server error, please try again later"});
+    }catch(err : any){
+        if (err?.message === "UNAUTHORIZED") {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        console.error(err);
+        return res.status(500).json({ message: "Internal server error" });
     }
 }
