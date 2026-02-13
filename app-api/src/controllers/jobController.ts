@@ -36,3 +36,65 @@ export const createJob = async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Internal server error" });
     }
 };
+
+export const getJobs = async(req: Request, res:Response) =>{
+    try{
+        assertAuthenticated(req);
+
+        const jobs = await prisma.jobDescription.findMany({
+            where : {
+                userId : req.user.userId
+            },
+            select : {
+                id: true,
+                title: true,
+                tags : true,
+                createdAt : true,
+                updatedAt : true
+            },
+            orderBy : {createdAt: "desc"} //send from new to old
+        });
+
+        res.status(200).json(jobs);
+    }catch(error:any){
+        if (error?.message === "UNAUTHORIZED") {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+export const getJobsById = async(req: Request, res:Response) =>{
+    try{
+        assertAuthenticated(req);
+
+        const jobId = req.params.id;
+        const jobs = await prisma.jobDescription.findFirst({
+            where : {
+                id : jobId as string,
+                userId : req.user.userId
+            },
+            select : {
+                id: true,
+                title: true,
+                rawText : true,
+                tags : true,
+                createdAt : true,
+                updatedAt : true
+            }
+        });
+
+        if(!jobs){
+            return res.status(404).json({message: "No such job exists."});
+        }
+
+        res.status(200).json(jobs);
+    }catch(error:any){
+        if (error?.message === "UNAUTHORIZED") {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
