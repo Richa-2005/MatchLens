@@ -98,3 +98,35 @@ export const getJobsById = async(req: Request, res:Response) =>{
         return res.status(500).json({ message: "Internal server error" });
     }
 }
+
+export const deleteJob = async(req:Request, res:Response) =>{
+    try{
+        assertAuthenticated(req);
+
+        const jobId = req.params.id;
+
+        const job = await prisma.jobDescription.findFirst({
+            where : {
+                id : jobId as string,
+                userId : req.user.userId
+            }
+        });
+
+        if(!job){
+            return res.status(404).json({message: "No such job exists."});
+        }
+        
+        await prisma.jobDescription.deleteMany({
+            where : {
+                id : jobId as string
+            }
+        });
+        res.status(200).json({message: "Job deleted successfully."});
+    }catch(error:any){
+        if (error?.message === "UNAUTHORIZED") {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
