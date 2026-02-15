@@ -1,4 +1,3 @@
-
 import { Request, Response} from 'express';
 import { assertAuthenticated } from '../types/auth';
 import { prisma } from '../lib/prisma';
@@ -122,6 +121,46 @@ export const deleteJob = async(req:Request, res:Response) =>{
             }
         });
         res.status(200).json({message: "Job deleted successfully."});
+    }catch(error:any){
+        if (error?.message === "UNAUTHORIZED") {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+export const updateJob = async(req:Request, res:Response) =>{
+    try{
+        assertAuthenticated(req);
+
+        const jobId = req.params.id;
+        const {title, rawText, tags} = req.body;
+
+        const updateData: any = {};
+
+        if (title !== undefined) updateData.title = title;
+        if (rawText !== undefined) updateData.rawText = rawText;
+        if (tags !== undefined) updateData.tags = Array.isArray(tags) ? tags : [];
+
+        //check if user actually sent any field to update or not
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).json({ updated : false, error: "Nothing to update." });
+        }
+
+        const job = await prisma.jobDescription.updateMany({
+            where : {
+                id : jobId as string,
+                userId : req.user.userId
+            },
+            data : updateData
+        })
+
+        if(job.count==0){
+            return res.status(404).json({updated : false, error : "No such job exists."});
+        }
+
+        res.status(200).json({updated:true, message : "Job updated successfully."});
     }catch(error:any){
         if (error?.message === "UNAUTHORIZED") {
             return res.status(401).json({ error: "Unauthorized" });
