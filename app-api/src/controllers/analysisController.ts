@@ -1,12 +1,16 @@
 import {Request,Response} from 'express';
 import {assertAuthenticated} from '../types/auth';
 import {prisma} from '../lib/prisma';
+import axios from 'axios';
+
+const mlURL = process.env.ML_API_URL as string;
 
 export const analysisRun = async(req: Request, res: Response) => {
     try{
         assertAuthenticated(req);
 
         const {resumeId, jobId} = req.body;
+        if (!resumeId || !jobId) return res.status(400).json({ error: "resumeId and jobId are required" });
 
         const resume = await prisma.resume.findFirst({
             where : {
@@ -34,39 +38,52 @@ export const analysisRun = async(req: Request, res: Response) => {
             }
         });
 
-        if (!resumeId || !jobId) return res.status(400).json({ error: "resumeId and jobId are required" });
+        if (!resume) return res.status(404).json({ error: "Resume not found." });
+        if (!job) return res.status(404).json({ error: "Job description not found." });
         
+        try{
+            
+            const mlResult = await axios.post(`${mlURL}/analyze`, {
+                resume: resume.rawText,
+                job: job.rawText
+            });
+            
+             const analysis = await prisma.analysisRun.create({
+                data: {
+                    userId: req.user.userId,
+                    resumeId : resumeId,
+                    jobDescriptionId: jobId,
 
-        const analysis = await prisma.analysisRun.create({
-            data: {
-                userId: req.user.userId,
-                resumeId : resumeId,
-                jobDescriptionId: jobId,
-
-                overallScore: 72,
-                probabilityScore: 0.63,
-                signals: { keywordOverlap: 0.42 },
-                matchedSkills: ["node", "postgres"],
-                missingSkills: ["docker"],
-                highImpactMissing: ["system design"],
-                explanation: ["Dummy analysis for now"],
-                debug: { mode: "dummy" }
-            },
-            select: {
-                id: true,
-                overallScore: true,
-                probabilityScore: true,
-                matchedSkills: true,
-                missingSkills: true,
-                highImpactMissing: true,
-                signals: true,
-                createdAt: true,
-                resumeId: true,
-                jobDescriptionId: true
-            }
+                    overallScore: mlResult.data.overallScore ,
+                    probabilityScore: mlResult.data.probabilityScore,
+                    signals: mlResult.data.signals,
+                    matchedSkills: mlResult.data.matchedSkills,
+                    missingSkills: mlResult.data.missingSkills,
+                    highImpactMissing: mlResult.data.highImpactMissing,
+                    explanation: mlResult.data.explanation,
+                    debug: { source: "ml-api-v1" }
+                },
+                select: {
+                    id: true,
+                    overallScore: true,
+                    probabilityScore: true,
+                    matchedSkills: true,
+                    missingSkills: true,
+                    highImpactMissing: true,
+                    signals: true,
+                    createdAt: true,
+                    resumeId: true,
+                    jobDescriptionId: true,
+                    explanation : true
+                }
         });
 
-        res.status(201).json(analysis);
+        return res.status(201).json(analysis);
+
+        }catch(error){
+            return res.status(500).json({message:"Analysis failed due to ML service! Please try again later"});
+        }
+
 
     }catch(error:any){
         if (error?.message === "UNAUTHORIZED") {
