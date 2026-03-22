@@ -94,6 +94,36 @@ export const analysisRun = async(req: Request, res: Response) => {
     }
 }
 
+export const getAllAnalysis = async(req:Request, res: Response) =>{
+    try{
+        assertAuthenticated(req);
+
+        const analysis = await prisma.analysisRun.findMany({
+            where : {
+                userId : req.user.userId
+            },
+            select : {
+                id : true,
+                overallScore : true,
+                probabilityScore: true,
+                createdAt : true
+            },
+            orderBy : {
+                createdAt : "desc"
+            }
+        });
+        
+        return res.status(200).json(analysis);
+
+    }catch(error:any){
+        if (error?.message === "UNAUTHORIZED") {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
 export const getAnalysis = async(req:Request, res: Response) =>{
     try{
         assertAuthenticated(req);
