@@ -1,139 +1,69 @@
-from skills import SKILLS
-import string 
-import re
+from textProcessor import parse_sections
+from similarity import compute_tfidf_similarity,extract_keywords
+from impact import calculate_impact_score,generate_insights
+from skill_matching import get_high_impact_missing, get_weighted_resume_skills, extract_skills,find_related_skills,compare_weighted_skills,calculate_score
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-#TF-IDF 
-def compute_tfidf_similarity(resume_text, job_text):
-
-    documents = [resume_text, job_text]
-
-    vectorizer = TfidfVectorizer()
-
-    tfidf_matrix = vectorizer.fit_transform(documents)
-
-    similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
-
-    return float(similarity[0][0])
-
-def normalize_punctuations(text):
-    punctuations = ",;:!?{()[]}"
-    translator = str.maketrans('','',punctuations) #remove specific punctuations.
-    text = text.translate(translator)
-    text = re.sub(r'\s+', ' ', text).strip() #remove multiple whitespaces
-
-    return text 
-
-def stop_words(text):
-    stop = {'the','and','is','or','are','am','must','should','for','of','in','to','a','an','has'}
-    ans = []
-    for word in text:
-        if (word not in stop) and (len(word) >=3):
-            ans.append(word)
-    
-    return ans
-
-def tokenize_text(text):
-    #lowercase the text
-    text = text.lower()
-    
-    #normalize punctutations in the text specifically
-    text = normalize_punctuations(text)
-    
-    #word list 
-    text = text.split()
-    #remove stop words
-    text = stop_words(text)
-    #convert to set to remove duplicates
-    text = set(text)
-
-    return text
-
-
-def extract_keywords(resume, job):
-
-    resume = tokenize_text(resume)
-    job = tokenize_text(job)
-
-    matched_key = resume.intersection(job)
-
-    if len(job)==0:
-        key_overlap = 0
-    else :
-        key_overlap = len(matched_key) / len(job)
-
-    return matched_key,key_overlap
-
-def extract_skills(text):
-    
-    #lowercase the text
-    text = text.lower()
-    
-    #normalize punctutations in the text specifically
-    text = normalize_punctuations(text)
-
-    found = set() #empty set
-
-    for category in SKILLS.values():
-        for canonical in category:
-            for skill in category[canonical]:
-                if skill in text:
-                    ind = text.find(skill)
-                    left_ok = (ind == 0) or (not text[ind - 1].isalpha())
-                    right_index = ind + len(skill)
-                    right_ok = (right_index == len(text)) or (not text[right_index].isalpha())
-
-                    if left_ok and right_ok:
-                        found.add(canonical)
-
-    return found
-
-def compare_skills(resume_skills, job_skills):
-    matched = resume_skills.intersection(job_skills)
-    missing = job_skills.difference(resume_skills)
-
-    return matched, missing
-
-def calculate_score(matched, job_skills):
-    if len(job_skills) == 0:
-        return 0
-
-    return len(matched) / len(job_skills)
 
 def analyze_resume(resume_text, job_text):
     
-    #extract the skills from both jobs and resume
-    resume_skills = extract_skills(resume_text)
+    parsed_sections = parse_sections(resume_text)
+
+    impact_score = calculate_impact_score(parsed_sections)
+    
+    weighted_resume_skills = get_weighted_resume_skills(parsed_sections)
     job_skills = extract_skills(job_text)
 
-    #compare how many are matching and how many are missing
-    matched, missing = compare_skills(resume_skills, job_skills)
-    
-    #use formula to calculate the score
-    score = calculate_score(matched, job_skills)
+    resume_skills = set(weighted_resume_skills.keys())
+    related_skills = sorted(list(find_related_skills(resume_skills, job_skills)))
 
+    #compare how many are matching and how many are missing
+    matched, missing, weighted_sum = compare_weighted_skills(weighted_resume_skills, job_skills)
+    
+    missing_list = get_high_impact_missing(job_text,missing,related_skills)
+
+    #use formula to calculate the score
+    skillOverlap = calculate_score(weighted_sum, job_skills)
+    related_bonus = len(related_skills) / len(job_skills) if len(job_skills) > 0 else 0
     matched_list = sorted(list(matched))
-    missing_list = sorted(list(missing))
 
     matched_key,key_overlap = extract_keywords(resume_text,job_text)
     tfidf_score = compute_tfidf_similarity(resume_text, job_text)
-    final_score = (score * 0.5) + (0.2 * key_overlap) + (0.3 * tfidf_score)
+
+    insights = generate_insights(skillOverlap,key_overlap,tfidf_score,impact_score,
+                                 related_bonus,missing_list[:3],related_skills)
+
+    final_score = (
+        0.4 * skillOverlap +
+        0.15 * key_overlap +
+        0.2 * tfidf_score +
+        0.15 * impact_score +
+        0.1 * related_bonus
+    )
     return {
         "overallScore": int(final_score*100),
         "probabilityScore": final_score,
         "matchedSkills": matched_list,
-        "missingSkills": missing_list,
+        "missingSkills": sorted(list(missing)),
+        "relatedSkills": related_skills,
         "signals": {
-            "skillOverlap": score,
+            "skillOverlap": skillOverlap,
             "keywordOverlap": key_overlap,
-            "tfidfSimilarity": tfidf_score
+            "tfidfSimilarity": tfidf_score,
+            "impactScore": impact_score,
+            "relatedSkillBonus": related_bonus
         },
         "highImpactMissing": missing_list[:3],
+        "insights": {
+            "strengths": insights["strengths"],
+            "issues": insights["issues"],
+            "tips": insights["tips"]
+        },
         "explanation": [
-            "Score based on skill overlap between resume and job description",
-            "Keyword overlap measures shared keywords between texts",
-            "TF-IDF similarity measures contextual similarity between resume and job"
+            "Score combines weighted skill evidence from resume sections",
+            "Keyword overlap measures shared job language",
+            "TF-IDF similarity measures overall contextual similarity",
+            "Impact score rewards measurable achievements in projects and experience"
         ]
     }
+
+

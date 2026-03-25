@@ -71,3 +71,30 @@ SKILLS = {
     }
 }
 
+SECTIONS={
+    "skills":["skills", "technical skills", "core competencies"],
+    "projects": ["projects", "academic projects", "personal projects"],
+	"experience": ["experience", "work experience", "internship, employment"],
+	"education": ["education", "academic background"]
+}
+
+SECTION_WEIGHTS = {
+    "skills": 1.0,
+    "projects": 1.5,
+    "experience": 2.0,
+    "other": 0.5
+}
+
+ACTION_WORDS = { "improved", "increased", "reduced", "optimized", "built", "created", 
+                "developed", "automated", "achieved", "led"}
+
+SCALE_WORDS = {"users","records","entries","requests","queries","apis","customers",
+               "datasets","models","reports"}
+
+RELATED_SKILLS = {
+    "python": ["django", "flask", "pandas", "numpy"],
+    "javascript": ["react", "node", "express"],
+    "machine learning": ["scikit-learn", "tensorflow", "pytorch"],
+    "data analysis": ["pandas", "numpy", "excel"],
+    "sql": ["postgresql", "mysql", "sqlite"]
+}
