@@ -64,11 +64,12 @@ model AnalysisRun {
 
   id                String @id @default(uuid())
 	overallScore      Int  
-	probabilityScore  Float  
+	probabilityScore  Float 
+  analysisVersion   String 
+
 	signals           Json 
-	matchedSkills     String[] 
-	missingSkills     String[]
-	highImpactMissing String[]
+	skills            Json
+  insights          Json
 	explanation       String[]
 	debug             Json? 
   createdAt         DateTime @default(now())

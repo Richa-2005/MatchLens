@@ -4,7 +4,7 @@ import {prisma} from '../lib/prisma';
 import axios from 'axios';
 
 const mlURL = process.env.ML_API_URL as string;
-
+const ANALYSIS_VERSION = "v2";
 export const analysisRun = async(req: Request, res: Response) => {
     try{
         assertAuthenticated(req);
@@ -47,7 +47,11 @@ export const analysisRun = async(req: Request, res: Response) => {
                 resume: resume.rawText,
                 job: job.rawText
             });
-            
+            const data = mlResult.data;
+
+            if (!data || typeof data.overallScore !== "number") {
+                throw new Error("Invalid ML response");
+            }
              const analysis = await prisma.analysisRun.create({
                 data: {
                     userId: req.user.userId,
@@ -56,21 +60,27 @@ export const analysisRun = async(req: Request, res: Response) => {
 
                     overallScore: mlResult.data.overallScore ,
                     probabilityScore: mlResult.data.probabilityScore,
+                    analysisVersion: ANALYSIS_VERSION,
+
                     signals: mlResult.data.signals,
-                    matchedSkills: mlResult.data.matchedSkills,
-                    missingSkills: mlResult.data.missingSkills,
-                    highImpactMissing: mlResult.data.highImpactMissing,
+                    skills: {
+                        matched: mlResult.data.matchedSkills,
+                        related: mlResult.data.relatedSkills,
+                        missing: mlResult.data.missingSkills,
+                        highImpactMissing: mlResult.data.highImpactMissing,
+                    },
+                    insights:mlResult.data.insights,
                     explanation: mlResult.data.explanation,
-                    debug: { source: "ml-api-v1" }
+                    debug: { source: "ml-api-v2" }
                 },
                 select: {
                     id: true,
                     overallScore: true,
                     probabilityScore: true,
-                    matchedSkills: true,
-                    missingSkills: true,
-                    highImpactMissing: true,
+                    analysisVersion: true,
+                    skills:true,
                     signals: true,
+                    insights:true,
                     createdAt: true,
                     resumeId: true,
                     jobDescriptionId: true,
@@ -80,10 +90,9 @@ export const analysisRun = async(req: Request, res: Response) => {
 
         return res.status(201).json(analysis);
 
-        }catch(error){
-            return res.status(500).json({message:"Analysis failed due to ML service! Please try again later"});
+        }catch(error:any){
+            console.error("ML ERROR:", error?.response?.data || error.message);
         }
-
 
     }catch(error:any){
         if (error?.message === "UNAUTHORIZED") {
@@ -97,20 +106,37 @@ export const analysisRun = async(req: Request, res: Response) => {
 export const getAllAnalysis = async(req:Request, res: Response) =>{
     try{
         assertAuthenticated(req);
+        const { page = 1, limit = 10 } = req.query;
 
         const analysis = await prisma.analysisRun.findMany({
+            skip: (Number(page) - 1) * Number(limit),
+            take: Number(limit),
             where : {
                 userId : req.user.userId
             },
-            select : {
-                id : true,
-                overallScore : true,
+            select: {
+                id: true,
+                overallScore: true,
                 probabilityScore: true,
-                createdAt : true
+                createdAt: true,
+                analysisVersion: true,
+                resumeId: true,
+                jobDescriptionId: true,
+                resume: {
+                    select: {
+                    title: true
+                    }
+                },
+                jobDescription: {
+                    select: {
+                    title: true
+                    }
+                }
             },
             orderBy : {
                 createdAt : "desc"
             }
+        
         });
         
         return res.status(200).json(analysis);
@@ -145,7 +171,21 @@ export const getAnalysis = async(req:Request, res: Response) =>{
                 id : true,
                 overallScore : true,
                 probabilityScore: true,
-                createdAt : true
+                createdAt : true,
+                analysisVersion: true,
+                resumeId: true,
+                jobDescriptionId: true,
+                resume: {
+                    select: {
+                    title: true
+                    }
+                },
+                jobDescription: {
+                    select: {
+                    title: true
+                    }
+                }
+                
             },
             orderBy : {
                 createdAt : "desc"
@@ -166,25 +206,36 @@ export const getAnalysis = async(req:Request, res: Response) =>{
 export const getAnalysisById = async(req:Request, res: Response) =>{
     try{
         assertAuthenticated(req);
-
+        
         const analysisId = req.params.id as string | undefined;
 
-        const analysis = await prisma.analysisRun.findFirst({
+        const analysis = await prisma.analysisRun.findUnique({
             where : {
                 id : analysisId,
-                userId : req.user.userId
             },
             select : {
                 id: true,
+                userId:true,
                 overallScore: true,
                 probabilityScore: true,
-                matchedSkills: true,
-                missingSkills: true,
-                highImpactMissing: true,
+                analysisVersion: true,
+                skills:true,
                 signals: true,
+                insights:true,
                 createdAt: true,
                 resumeId: true,
-                jobDescriptionId: true
+                jobDescriptionId: true,
+                explanation : true,
+                resume: {
+                    select: {
+                    title: true
+                    }
+                },
+                jobDescription: {
+                    select: {
+                    title: true
+                    }
+                }
             }
             
         });
