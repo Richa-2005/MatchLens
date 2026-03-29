@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import  { prisma } from '../lib/prisma'; //import the prisma client instance 
 import { assertAuthenticated } from "../types/auth";
+import { extractTextFromPDF } from "../utils/pdfParser";
+import { cleanResumeText } from "../utils/textCleaner";
 
 //The user will enter title , rawText, tags
 export const createResume = async(req:Request, res: Response) => {
@@ -200,9 +202,18 @@ export const deleteResume = async(req:Request, res: Response) => {
     try{
         assertAuthenticated(req);
 
+        const { id } = req.params;
+
+        await prisma.analysisRun.deleteMany({
+        where: {
+            resumeId: id as string,
+            userId: req.user.userId,
+        },
+        });
+
         const result = await prisma.resume.deleteMany({
             where: {
-                id: req.params.id as string,
+                id: id as string,
                 userId: req.user.userId
             }
         });
@@ -221,3 +232,48 @@ export const deleteResume = async(req:Request, res: Response) => {
         return res.status(500).json({ message: "Internal server error" });
     }
 }
+
+export const uploadResumeController = async (req: Request, res: Response) => {
+  try {
+    assertAuthenticated(req);
+
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: "File is required" });
+    }
+
+    const title = req.body.title || file.originalname;
+
+    const rawExtractedText = await extractTextFromPDF(file.path);
+    const extractedText = cleanResumeText(rawExtractedText);
+    if (!extractedText || extractedText.trim().length < 50) {
+        return res.status(400).json({
+            error: "Could not extract meaningful text from PDF",
+        });
+    }
+
+    const resume = await prisma.resume.create({
+      data: {
+        userId: req.user.userId,
+        title,
+        rawText: extractedText,
+        fileName: file.originalname,
+        filePath: file.path,
+        sourceType: "upload",
+      },
+      select: {
+        id: true,
+        title: true,
+        fileName: true,
+        createdAt: true,
+      },
+    });
+
+    return res.status(201).json(resume);
+
+  } catch (error: any) {
+    console.error(error);
+    return res.status(500).json({ message: "Upload failed" });
+  }
+};

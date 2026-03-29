@@ -32,7 +32,8 @@ def get_weighted_resume_skills(parsed_sections):
     output = {}
 
     for section in ["skills", "projects", "experience", "other"]:
-        skills_in_section = extract_skills(parsed_sections[section])
+        section_text = " ".join(parsed_sections[section])
+        skills_in_section = extract_skills(section_text)
         weight = SECTION_WEIGHTS[section]
 
         for skill in skills_in_section:

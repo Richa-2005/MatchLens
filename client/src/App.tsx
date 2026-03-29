@@ -5,14 +5,30 @@ import Dashboard from "./pages/Dashboard";
 import NewAnalysis from "./pages/NewAnalysis";
 import Resume from "./pages/Resume";
 import Jobs from "./pages/Jobs";
+import AnalysisHistory from "./pages/AnalysisHistory";
+import { useEffect, useState } from "react";
+
 
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
-function Placeholder({ title }: { title: string }) {
-  return <div className="text-slate-600">{title} page coming soon.</div>;
-}
-
 function App() {
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    return (localStorage.getItem("theme") as "light" | "dark") || "dark";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("theme", theme);
+
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -22,7 +38,7 @@ function App() {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <Dashboard theme={theme} toggleTheme={toggleTheme} />
           </ProtectedRoute>
         }
       />
@@ -30,7 +46,7 @@ function App() {
         path="/resumes"
         element={
           <ProtectedRoute>
-            <Resume/>
+            <Resume theme={theme} toggleTheme={toggleTheme} />
           </ProtectedRoute>
         }
       />
@@ -38,7 +54,7 @@ function App() {
         path="/jobs"
         element={
           <ProtectedRoute>
-            <Jobs />
+            <Jobs theme={theme} toggleTheme={toggleTheme} />
           </ProtectedRoute>
         }
       />
@@ -46,7 +62,7 @@ function App() {
         path="/analysis-history"
         element={
           <ProtectedRoute>
-            <Placeholder title="Analysis History" />
+            <AnalysisHistory theme={theme} toggleTheme={toggleTheme} />
           </ProtectedRoute>
         }
       />
@@ -54,7 +70,7 @@ function App() {
         path="/new-analysis"
         element={
           <ProtectedRoute>
-            <NewAnalysis />
+            <NewAnalysis theme={theme} toggleTheme={toggleTheme} />
           </ProtectedRoute>
         }
       />

@@ -2,16 +2,20 @@ import {Request,Response} from 'express';
 import {assertAuthenticated} from '../types/auth';
 import {prisma} from '../lib/prisma';
 import axios from 'axios';
+import { cleanResumeText } from "../utils/textCleaner";
+import { generateContentHash } from "../utils/hash";
+
 
 const mlURL = process.env.ML_API_URL as string;
 const ANALYSIS_VERSION = "v2";
+
 export const analysisRun = async(req: Request, res: Response) => {
     try{
         assertAuthenticated(req);
 
         const {resumeId, jobId} = req.body;
         if (!resumeId || !jobId) return res.status(400).json({ error: "resumeId and jobId are required" });
-
+        
         const resume = await prisma.resume.findFirst({
             where : {
                 id : resumeId,
@@ -40,19 +44,74 @@ export const analysisRun = async(req: Request, res: Response) => {
 
         if (!resume) return res.status(404).json({ error: "Resume not found." });
         if (!job) return res.status(404).json({ error: "Job description not found." });
-        
+
+        if (!resume.rawText || resume.rawText.length < 50) {
+            return res.status(400).json({
+                error: "Resume text is invalid or too short for analysis"
+            });
+        }
+
+        if (!job.rawText || job.rawText.length < 50) {
+            return res.status(400).json({
+                error: "Job description is invalid or too short"
+            });
+        }
+        const resumeText = cleanResumeText(resume.rawText);
+        const jobText = cleanResumeText(job.rawText);
+
+        const contentHash = generateContentHash(resumeText, jobText);
+
         try{
+            const existingAnalysis = await prisma.analysisRun.findFirst({
+            where: {
+                userId: req.user.userId,
+                contentHash: contentHash,
+            },
+            select: {
+                id: true,
+                overallScore: true,
+                probabilityScore: true,
+                analysisVersion: true,
+                skills: true,
+                signals: true,
+                insights: true,
+                createdAt: true,
+                resumeId: true,
+                jobDescriptionId: true,
+                explanation: true,
+                resume: {
+                select: {
+                    title: true,
+                },
+                },
+                jobDescription: {
+                select: {
+                    title: true,
+                },
+                },
+            },
+            });
+
+            if (existingAnalysis) {
+                return res.status(200).json(existingAnalysis);
+            }
+
+            console.log("Sending to ML:");
+            console.log({
+                resumeLength: resume.rawText.length,
+                jobLength: job.rawText.length
+            });
             
             const mlResult = await axios.post(`${mlURL}/analyze`, {
-                resume: resume.rawText,
-                job: job.rawText
+                resume: resumeText,
+                job: jobText
             });
             const data = mlResult.data;
 
             if (!data || typeof data.overallScore !== "number") {
                 throw new Error("Invalid ML response");
             }
-             const analysis = await prisma.analysisRun.create({
+            const analysis = await prisma.analysisRun.create({
                 data: {
                     userId: req.user.userId,
                     resumeId : resumeId,
@@ -61,6 +120,7 @@ export const analysisRun = async(req: Request, res: Response) => {
                     overallScore: mlResult.data.overallScore ,
                     probabilityScore: mlResult.data.probabilityScore,
                     analysisVersion: ANALYSIS_VERSION,
+                    contentHash : contentHash,
 
                     signals: mlResult.data.signals,
                     skills: {
@@ -95,12 +155,11 @@ export const analysisRun = async(req: Request, res: Response) => {
         }
 
     }catch(error:any){
-        if (error?.message === "UNAUTHORIZED") {
-            return res.status(401).json({ error: "Unauthorized" });
-        }
-        console.error(error);
-        return res.status(500).json({ message: "Internal server error" });
-    }
+    console.error("ML ERROR:", error?.response?.data || error.message);
+    return res.status(500).json({
+        error: "Analysis failed due to ML service. Please try again later."
+    });
+}
 }
 
 export const getAllAnalysis = async(req:Request, res: Response) =>{
@@ -256,3 +315,79 @@ export const getAnalysisById = async(req:Request, res: Response) =>{
         return res.status(500).json({ message: "Internal server error" });
     }
 }
+
+export const getAnalysisList = async (req: Request, res: Response) => {
+  try {
+    assertAuthenticated(req);
+
+    const { resumeId, jobId, search } = req.query;
+
+    const where: any = {
+      userId: req.user.userId,
+    };
+
+    if (resumeId) {
+      where.resumeId = resumeId;
+    }
+
+    if (jobId) {
+      where.jobDescriptionId = jobId;
+    }
+
+    if (search) {
+      where.OR = [
+        {
+          resume: {
+            title: {
+              contains: String(search),
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          jobDescription: {
+            title: {
+              contains: String(search),
+              mode: "insensitive",
+            },
+          },
+        },
+      ];
+    }
+
+    const analyses = await prisma.analysisRun.findMany({
+      where,
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        overallScore: true,
+        probabilityScore: true,
+        createdAt: true,
+        resumeId: true,
+        jobDescriptionId: true,
+        resume: {
+          select: {
+            title: true,
+          },
+        },
+        jobDescription: {
+          select: {
+            title: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json(analyses);
+
+  } catch (error: any) {
+    if (error?.message === "UNAUTHORIZED") {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    console.error(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};

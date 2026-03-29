@@ -1,67 +1,167 @@
-
+import { useEffect, useState } from "react";
 
 type ResumesResponse = {
-    id: string,
-    title: string,
-    tags: string[],
-    createdAt: string,
-    updatedAt: string
-}
+  id: string;
+  title: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+};
 
 type ResumeResponse = ResumesResponse & {
-    rawText: string
-}
-type Props = {
-    setResume : React.Dispatch<React.SetStateAction<ResumeResponse | null>>,
-    deleteResume : (id:string)=>Promise<void>,
-    resume : ResumeResponse
-}
+  rawText: string;
+};
 
-export default function ResumeModal(props:Props) {
-    
+type EditInput = {
+  title: string;
+  rawText: string;
+};
+
+type Props = {
+  setResume: React.Dispatch<React.SetStateAction<ResumeResponse | null>>;
+  deleteResume: (id: string) => Promise<void>;
+  updateResume: (id: string, data: EditInput) => Promise<void>;
+  resume: ResumeResponse;
+  loading: boolean;
+};
+
+export default function ResumeModal(props: Props) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<EditInput>({
+    title: props.resume.title,
+    rawText: props.resume.rawText,
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setEditData({
+      title: props.resume.title,
+      rawText: props.resume.rawText,
+    });
+    setIsEditing(false);
+  }, [props.resume]);
+
+  const handleSave = async () => {
+    if (!editData.title.trim() || !editData.rawText.trim()) return;
+
+    setSaving(true);
+    await props.updateResume(props.resume.id, editData);
+    setSaving(false);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditData({
+      title: props.resume.title,
+      rawText: props.resume.rawText,
+    });
+    setIsEditing(false);
+  };
+
   return (
     <div className="space-y-4">
-                    <button
-                        onClick={() => props.setResume(null)}
-                        className="text-sm text-indigo-400 hover:text-indigo-300"
-                        >
-                    ← Back to all resumes
-                    </button>
+      <button
+        onClick={() => props.setResume(null)}
+        className="text-sm text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
+      >
+        ← Back to all resumes
+      </button>
 
-                    <div className="rounded-2xl border border-slate-700 bg-slate-800/60 p-5">
-                    <h2 className="text-xl font-semibold text-slate-100">
-                        {props.resume.title}
-                    </h2>
+      <div className="rounded-2xl border border-slate-300/70 bg-gradient-to-br from-slate-50/95 via-white/90 to-indigo-50/30 p-5 dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800/60">
+        {isEditing ? (
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
+                Resume Title
+              </label>
+              <input
+                value={editData.title}
+                onChange={(e) =>
+                  setEditData((prev) => ({ ...prev, title: e.target.value }))
+                }
+                className="w-full rounded-lg border border-slate-300 bg-white/90 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                placeholder="Resume title"
+              />
+            </div>
 
-                    <div className="mt-2 flex flex-wrap gap-2">
-                        {props.resume.tags?.map((tag) => (
-                        <span
-                            key={tag}
-                            className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs text-indigo-300"
-                        >
-                            {tag}
-                        </span>
-                        ))}
-                    </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-200">
+                Resume Text
+              </label>
+              <textarea
+                value={editData.rawText}
+                onChange={(e) =>
+                  setEditData((prev) => ({ ...prev, rawText: e.target.value }))
+                }
+                rows={18}
+                className="w-full rounded-lg border border-slate-300 bg-white/90 px-3 py-3 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                placeholder="Paste resume text..."
+              />
+            </div>
 
-                    <p className="mt-4 text-sm text-slate-300 whitespace-pre-line">
-                        {props.resume.rawText}
-                    </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
 
-                 
-                    <div className="mt-6 flex gap-3">
-                        <button className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700">
-                            Edit
-                        </button>
+              <button
+                onClick={handleCancel}
+                disabled={saving}
+                className="rounded-lg border border-slate-300 bg-white/90 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+              {props.resume.title}
+            </h2>
 
-                        <button 
-                            className="rounded-lg border border-rose-500/30 px-4 py-2 text-sm text-rose-300 hover:bg-rose-500/10"
-                            onClick={()=>props.deleteResume(props.resume.id)}
-                        >
-                            Delete
-                        </button>
-                    </div>
-                    </div>
-                </div>
-  )
+            <div className="mt-2 flex flex-wrap gap-2">
+              {props.resume.tags?.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-indigo-100/70 px-3 py-1 text-xs text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+
+            <p className="mt-4 whitespace-pre-line text-sm text-slate-700 dark:text-slate-300">
+              {props.resume.rawText}
+            </p>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                className="rounded-lg border border-slate-300 bg-white/90 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                onClick={() => setIsEditing(true)}
+              >
+                Edit
+              </button>
+
+              <button
+                type="button"
+                className="rounded-lg border border-rose-300/50 bg-rose-50/80 px-4 py-2 text-sm text-rose-700 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
+                onClick={() => {
+                  if (confirm("Are you sure you want to delete this?")) {
+                    props.deleteResume(props.resume.id);
+                  }
+                }}
+                disabled={props.loading}
+              >
+                Delete
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }

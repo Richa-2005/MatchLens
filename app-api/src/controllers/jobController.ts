@@ -97,38 +97,48 @@ export const getJobsById = async(req: Request, res:Response) =>{
         return res.status(500).json({ message: "Internal server error" });
     }
 }
+export const deleteJob = async (req: Request, res: Response) => {
+  try {
+    assertAuthenticated(req);
 
-export const deleteJob = async(req:Request, res:Response) =>{
-    try{
-        assertAuthenticated(req);
+    const { id } = req.params;
 
-        const jobId = req.params.id;
+    const existingJob = await prisma.jobDescription.findFirst({
+      where: {
+        id: id as string,
+        userId: req.user.userId,
+      },
+    });
 
-        const job = await prisma.jobDescription.findFirst({
-            where : {
-                id : jobId as string,
-                userId : req.user.userId
-            }
-        });
-
-        if(!job){
-            return res.status(404).json({message: "No such job exists."});
-        }
-        
-        await prisma.jobDescription.deleteMany({
-            where : {
-                id : jobId as string
-            }
-        });
-        res.status(200).json({message: "Job deleted successfully."});
-    }catch(error:any){
-        if (error?.message === "UNAUTHORIZED") {
-            return res.status(401).json({ error: "Unauthorized" });
-        }
-        console.error(error);
-        return res.status(500).json({ message: "Internal server error" });
+    if (!existingJob) {
+      return res.status(404).json({ message: "No such job exists." });
     }
-}
+
+    await prisma.analysisRun.deleteMany({
+      where: {
+        jobDescriptionId: id as string,
+        userId: req.user.userId,
+      },
+    });
+
+    await prisma.jobDescription.delete({
+      where: {
+        id: id as string,
+      },
+    });
+
+    return res.status(200).json({ message: "Job deleted successfully." });
+  } catch (error: any) {
+    console.error(error);
+
+    if (error?.message === "UNAUTHORIZED") {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 export const updateJob = async(req:Request, res:Response) =>{
     try{
