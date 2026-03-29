@@ -2,10 +2,10 @@
 
 ## Resume–Job Match Analyzer
 
-An AI-assisted system that analyzes how well a resume matches a job description.  
-The platform extracts skills, compares them with job requirements, and produces an interpretable match score with insights.
+MatchLens is an AI-assisted platform that evaluates how well a resume aligns with a job description.
+It extracts skills, compares them with job requirements, and generates an interpretable match score with actionable insights.
 
-The system is designed with a **scalable microservice architecture** separating the application backend from the ML analysis service.
+The system is designed with a scalable multi-service architecture, separating application logic from ML processing for flexibility and future extensibility.
 
 ---
 
@@ -27,23 +27,25 @@ PostgreSQL Database
 ### Components
 
 **Frontend (React)**
-- User interface for creating resumes and job descriptions
-- Running analysis
-- Viewing results and history
+- Create, edit, and manage resumes and job descriptions
+- Run analysis and view detailed results
+- Browse analysis history with filtering
+- Dark/light themed UI
+
 
 **Backend API (Node + Express + Prisma)**
-- Authentication (JWT)
-- Resume management
-- Job description management
+- JWT-based authentication
+- Resume & job CRUD operations
 - Analysis orchestration
-- Stores analysis history
+- Prevents duplicate analysis using content hashing
+- Maintains consistency between resumes, jobs, and analysis
 
 **ML Service (Python + FastAPI)**
-- Resume and job text processing
+- Resume & job preprocessing
 - Skill extraction
 - Keyword analysis
-- TF-IDF similarity
-- Match scoring
+- TF-IDF similarity computation
+- Multi-signal scoring
 
 **Database (PostgreSQL)**
 - Users
@@ -56,9 +58,10 @@ PostgreSQL Database
 # Key Features
 
 ### Resume Management
-- Create and update resumes
-- Save multiple resume versions
-- Store resume text and tags
+- Create, edit, and delete resumes and job descriptions
+- Store multiple versions
+- Inline editing with prefilled data
+- Tag extraction for quick insights
 
 ### Job Description Management
 - Create and manage job descriptions
@@ -67,23 +70,35 @@ PostgreSQL Database
 ### Resume–Job Analysis
 The system analyzes resume–job compatibility using multiple signals:
 
+- Multi-signal scoring system
 - Skill overlap detection
 - Keyword overlap scoring
 - TF-IDF similarity analysis
-- Missing skill identification
-- High-impact skill suggestions
+- Missing & high-impact skill identification
 
-### Analysis Insights
+### Analysis Intelligence
+
 Each analysis provides:
-
 - Overall match score
 - Probability score
-- Matched skills
-- Missing skills
+- Matched / related / missing skills
 - High-impact missing skills
-- Detailed explanation
-- Signal breakdown
+- Signal breakdown (5 metrics)
+- Structured insights:
+1. Strengths
+2. Issues
+3. Actionable improvement tips
+- Human-readable explanations
 
+### Analysis History & Reuse
+- View all past analyses
+- Filter by resume or job
+- Reuse existing resume–job pairs
+- Prevent duplicate analyses using content hashing
+
+### Data Consistency
+- Automatically removes dependent analyses when a resume/job is deleted
+- Ensures fresh analysis after updates
 ---
 
 # Tech Stack
@@ -107,17 +122,19 @@ Each analysis provides:
 - React
 - Axios
 - Context API / State Management
-
+- Tailwind CSS
 ---
 
 # Scoring Method (V1)
 
 The first version of the scoring system combines multiple signals:
 ```
-Overall Score = 
-0.50 × Skill Overlap
-0.20 × Keyword Overlap
-0.30 × TF-IDF Similarity
+Overall Score =
+    0.40 × Skill Overlap +
+    0.15 × Keyword Overlap +
+    0.20 × TF-IDF Similarity +
+    0.15 × Impact Score +
+    0.10 × Related Skill Bonus
 ```
 
 ### Signals Explained
@@ -130,6 +147,14 @@ Measures shared important words between resume and job description.
 
 - **TF-IDF Similarity**
 Captures contextual similarity between resume and job content.
+
+- **Impact Score**
+Rewards measurable achievements (e.g., metrics, scale, results)
+
+- **Related Skill Bonus**
+Credits transferable or adjacent skills
+
+⚠️ Note: The scoring is heuristic-based and currently calibrated for interpretability. Further improvements are planned.
 
 ---
 
@@ -165,20 +190,29 @@ GET /analysis/:id
 # Example Analysis Response
 ```
 {
-  “overallScore”: 74,
-  “probabilityScore”: 0.74,
-  “matchedSkills”: [“node”, “postgresql”, “docker”],
-  “missingSkills”: [],
-  “highImpactMissing”: [],
-  “signals”: {
-  “skillOverlap”: 1,
-  “keywordOverlap”: 0.54,
-  “tfidfSimilarity”: 0.44
+  "overallScore": 68,
+  "probabilityScore": 0.68,
+  "matchedSkills": ["node", "express", "react"],
+  "missingSkills": ["docker"],
+  "relatedSkills": ["postgresql"],
+  "highImpactMissing": ["docker"],
+  "signals": {
+    "skillOverlap": 0.7,
+    "keywordOverlap": 0.5,
+    "tfidfSimilarity": 0.42,
+    "impactScore": 0.2,
+    "relatedSkillBonus": 0.15
   },
-  “explanation”: [
-  “Score based on skill overlap between resume and job description”,
-  “Keyword overlap measures shared keywords between texts”,
-  “TF-IDF similarity measures contextual similarity between resume and job”
+  "insights": {
+    "strengths": ["Strong full-stack alignment"],
+    "issues": ["Missing key deployment skills"],
+    "tips": ["Add Docker or deployment experience"]
+  },
+  "explanation": [
+    "Score combines weighted skill evidence from resume sections",
+    "Keyword overlap measures shared job language",
+    "TF-IDF similarity measures overall contextual similarity",
+    "Impact score rewards measurable achievements in projects and experience"
   ]
 }
 ```
@@ -218,28 +252,24 @@ ML_API_URL=http://localhost:xxxx
 
 ---
 
-# Future Improvements (Upcoming Versions)
+# Future Improvements (V3+)
 
 ### ML Improvements
-- Resume section analysis
-- Skill importance weighting
-- Domain-specific models
-- Real resume datasets
-- Embedding-based similarity
+- Improved scoring calibration (reduce under/overestimation)
+- Skill importance weighting based on job context
+- Embedding-based similarity (BERT / Sentence Transformers)
+- Resume section-level analysis (projects, experience, skills)
 
 ### Product Improvements
-- Resume PDF/DOCX upload
-- Automatic text extraction
-- Resume improvement suggestions
-- ATS-style scoring
-- Recruiter feedback simulation
+- Better explanation quality (more personalized insights)
+- Resume improvement rewriting suggestions
+- ATS-style recruiter feedback simulation
 
 ### System Improvements
-- Docker containerization
-- Background job queues
-- Caching layer
-- Model versioning
-- Rate limiting
+- Dockerization of services
+- Background job queues for async analysis
+- Caching layer for faster repeated queries
+- Model versioning and experiment tracking
 
 ---
 
