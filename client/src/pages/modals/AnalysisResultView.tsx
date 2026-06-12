@@ -1,30 +1,6 @@
-type AnalyzeResult = {
-  id: string;
-  overallScore: number;
-  probabilityScore: number;
-  skills: {
-    matched: string[];
-    related: string[];
-    missing: string[];
-    highImpactMissing: string[];
-  };
-  signals: {
-    skillOverlap: number;
-    keywordOverlap: number;
-    tfidfSimilarity: number;
-    impactScore: number;
-    relatedSkillBonus: number;
-  };
-  insights: {
-    strengths: string[];
-    issues: string[];
-    tips: string[];
-  };
-  explanation: string[];
-  createdAt: string;
-  resumeId: string | null;
-  jobDescriptionId: string | null;
-};
+import api from "@/api/axiosClient";
+import  toast  from "react-hot-toast";
+import type { AnalyzeResult } from "@/types/analysis";
 
 type AnalysisProps = {
   analyzeResult: AnalyzeResult;
@@ -117,6 +93,30 @@ function SignalCard({
   );
 }
 
+function InfoCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-300/70 bg-white/75 p-4 dark:border-slate-700 dark:bg-slate-900/60">
+      <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        {label}
+      </p>
+      <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-50">
+        {value}
+      </p>
+      {detail && (
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{detail}</p>
+      )}
+    </div>
+  );
+}
+
 function InsightList({
   title,
   subtitle,
@@ -172,7 +172,23 @@ function InsightList({
 
 export default function AnalysisResultView({ analyzeResult }: AnalysisProps) {
   const summary = getSummaryContent(analyzeResult);
+  const roleMatch = analyzeResult.signals.roleMatch;
+  const sectionScores = analyzeResult.signals.sectionSemanticScores;
+  const stuffingRisk = analyzeResult.signals.keywordStuffingRisk;
+  const overusedKeywords = analyzeResult.signals.overusedKeywords ?? [];
 
+  const submitFeedback = async (helpful: boolean, outcome?: string) => {
+    try {
+      await api.post(`/analysis/${analyzeResult.id}/feedback`, {
+        helpful,
+        outcome,
+      });
+
+      toast.success("Feedback saved");
+    } catch {
+      toast.error("Failed to save feedback");
+    }
+  };
   return (
     <div className="space-y-5">
       <div className="rounded-3xl border border-slate-300/70 bg-gradient-to-br from-slate-50 via-indigo-50/35 to-sky-50/40 p-6 shadow-xl shadow-slate-200/40 dark:border-slate-700 dark:bg-gradient-to-br dark:from-slate-800 dark:via-slate-800 dark:to-slate-900 dark:shadow-black/20">
@@ -245,6 +261,52 @@ export default function AnalysisResultView({ analyzeResult }: AnalysisProps) {
           </div>
         </div>
       </div>
+        
+      {analyzeResult.summary && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-sky-300/50 bg-sky-50/70 p-5 dark:border-sky-500/20 dark:bg-sky-500/5">
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+              Profile Summary
+            </h3>
+            <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+              {analyzeResult.summary.profileSummary}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-indigo-300/50 bg-indigo-50/70 p-5 dark:border-indigo-500/20 dark:bg-indigo-500/5">
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+              Recruiter View
+            </h3>
+            <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+              {analyzeResult.summary.recruiterView}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {roleMatch && (
+        <div className="rounded-2xl border border-slate-300/70 bg-gradient-to-br from-slate-50 via-white/90 to-cyan-50/35 p-5 shadow-sm dark:border-slate-700 dark:bg-gradient-to-br dark:from-slate-800 dark:via-slate-800 dark:to-slate-900">
+          <h3 className="mb-3 font-semibold text-slate-900 dark:text-slate-100">
+            Role Match
+          </h3>
+          <div className="grid gap-3 md:grid-cols-3">
+            <InfoCard
+              label="Resume Role"
+              value={roleMatch.resumeRole.replaceAll("_", " ")}
+              detail={`${(roleMatch.resumeConfidence * 100).toFixed(1)}% confidence`}
+            />
+            <InfoCard
+              label="Job Role"
+              value={roleMatch.jobRole.replaceAll("_", " ")}
+              detail={`${(roleMatch.jobConfidence * 100).toFixed(1)}% confidence`}
+            />
+            <InfoCard
+              label="Role Match Score"
+              value={`${(analyzeResult.signals.roleMatchScore * 100).toFixed(1)}%`}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
   <div className="rounded-2xl border border-slate-300/70 bg-gradient-to-br from-white/85 to-emerald-50/40 p-5 shadow-sm dark:border-slate-700 dark:bg-gradient-to-br dark:from-slate-800 dark:to-emerald-950/10">
@@ -337,8 +399,8 @@ export default function AnalysisResultView({ analyzeResult }: AnalysisProps) {
             gradient="from-violet-500 to-purple-500"
           />
           <SignalCard
-            label="TF-IDF Similarity"
-            value={analyzeResult.signals.tfidfSimilarity}
+            label="Semantic Similarity"
+            value={analyzeResult.signals.semanticSimilarity}
             gradient="from-cyan-500 to-teal-500"
           />
           <SignalCard
@@ -351,8 +413,55 @@ export default function AnalysisResultView({ analyzeResult }: AnalysisProps) {
             value={analyzeResult.signals.relatedSkillBonus}
             gradient="from-pink-500 to-rose-500"
           />
+          <SignalCard
+            label="Keyword Quality"
+            value={analyzeResult.signals.keywordQualityScore}
+            gradient="from-yellow-500 to-orange-500"
+          />
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <InfoCard
+            label="Keyword Stuffing Risk"
+            value={stuffingRisk}
+            detail={overusedKeywords.length > 0 ? `Overused: ${overusedKeywords.join(", ")}` : "No overused keywords detected"}
+          />
+          <InfoCard
+            label="Keyword Quality Score"
+            value={`${(analyzeResult.signals.keywordQualityScore * 100).toFixed(1)}%`}
+          />
         </div>
       </div>
+
+      {sectionScores && (
+        <div className="rounded-2xl border border-slate-300/70 bg-gradient-to-br from-slate-50 via-white/90 to-violet-50/35 p-5 shadow-sm dark:border-slate-700 dark:bg-gradient-to-br dark:from-slate-800 dark:via-slate-800 dark:to-slate-900">
+          <h3 className="mb-3 font-semibold text-slate-900 dark:text-slate-100">
+            Section Semantic Scores
+          </h3>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <SignalCard
+              label="Skills"
+              value={sectionScores.skills}
+              gradient="from-blue-500 to-indigo-500"
+            />
+            <SignalCard
+              label="Projects"
+              value={sectionScores.projects}
+              gradient="from-emerald-500 to-teal-500"
+            />
+            <SignalCard
+              label="Experience"
+              value={sectionScores.experience}
+              gradient="from-violet-500 to-purple-500"
+            />
+            <SignalCard
+              label="Other"
+              value={sectionScores.other}
+              gradient="from-slate-500 to-slate-700"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 xl:grid-cols-3">
         <InsightList
@@ -402,6 +511,41 @@ export default function AnalysisResultView({ analyzeResult }: AnalysisProps) {
           ))}
         </ul>
       </div>
+      <div className="rounded-2xl border border-slate-300/70 bg-white/70 p-5 dark:border-slate-700 dark:bg-slate-800/60">
+  <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+    Was this analysis useful?
+  </h3>
+
+  <div className="mt-4 flex flex-wrap gap-3">
+    <button
+      onClick={() => submitFeedback(true)}
+      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-500"
+    >
+      Helpful
+    </button>
+
+    <button
+      onClick={() => submitFeedback(false)}
+      className="rounded-lg bg-rose-600 px-4 py-2 text-sm text-white hover:bg-rose-500"
+    >
+      Not helpful
+    </button>
+
+    <button
+      onClick={() => submitFeedback(true, "interview")}
+      className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-500"
+    >
+      Got Interview
+    </button>
+
+    <button
+      onClick={() => submitFeedback(true, "rejected")}
+      className="rounded-lg border border-slate-400 px-4 py-2 text-sm text-slate-700 dark:border-slate-600 dark:text-slate-200"
+    >
+      Rejected
+    </button>
+  </div>
+</div>
     </div>
   );
 }

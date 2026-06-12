@@ -4,6 +4,7 @@ import authRoutes from './routes/authRoutes';
 import resumeRoutes from './routes/resumeRoutes';
 import jobRoutes from './routes/jobRoutes';
 import analysisRoutes from './routes/analysisRoutes';
+import applicationRoutes from './routes/applicationRoutes';
 
 const app : Application = express();
 
@@ -14,6 +15,7 @@ app.use('/auth',authRoutes); //Authorization of user
 app.use('/resumes',resumeRoutes); //resume CRUD
 app.use('/jobs',jobRoutes); //job description CRUD
 app.use("/analysis", analysisRoutes); //ML call + results
+app.use("/applications", applicationRoutes); //application tracker
 
 app.get('/health', (req: Request, res: Response) : void => {
     res.status(200).json({status:'ok'});

@@ -15,6 +15,15 @@ datasource db {
 
 //SCHEMA
 
+enum ApplicationStatus {
+  PLANNED
+  APPLIED
+  INTERVIEW
+  REJECTED
+  OFFER
+  WITHDRAWN
+}
+
 // User details 
 model User { 
   id           String @id @default(uuid())
@@ -27,6 +36,8 @@ model User {
   resumes       Resume[]
   jobDescriptions JobDescription[]
   analysisRuns   AnalysisRun[]
+  analysisFeedbacks AnalysisFeedback[]
+  applications Application[]
 }
 
 //Each Resume details 
@@ -45,6 +56,7 @@ model Resume {
   user       User @relation(fields: [userId], references: [id])
 
   analyses   AnalysisRun[]
+  applications Application[]
 
   @@index([userId])
 }
@@ -62,6 +74,7 @@ model JobDescription {
   user      User @relation(fields: [userId], references: [id])
 
   analysisRuns AnalysisRun[]
+  applications Application[]
 }
 
 model AnalysisRun { 
@@ -73,6 +86,7 @@ model AnalysisRun {
 
   signals           Json 
   skills            Json
+  summary           Json?
   insights          Json
   explanation       String[]
   debug             Json? 
@@ -87,9 +101,57 @@ model AnalysisRun {
 
   jobDescriptionId  String
   jobDescription    JobDescription @relation(fields: [jobDescriptionId], references: [id])
+  feedbacks AnalysisFeedback[]
+  applications Application[]
 
   @@index([userId])
   @@index([resumeId])
   @@index([jobDescriptionId])
   @@index([contentHash])
+}
+
+model AnalysisFeedback {
+  id            String   @id @default(uuid())
+  userId        String
+  analysisRunId String
+  helpful       Boolean?
+  outcome       String?
+  note          String?
+  createdAt     DateTime @default(now())
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysisRun   AnalysisRun @relation(fields: [analysisRunId], references: [id], onDelete: Cascade)
+}
+
+model Application {
+  id               String   @id @default(uuid())
+
+  userId           String
+
+  jobDescriptionId String
+  resumeId         String
+
+  analysisRunId    String?
+
+  status           ApplicationStatus @default(PLANNED)
+
+  source           String?
+
+  appliedAt        DateTime?
+  notes            String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user             User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jobDescription   JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+
+  resume           Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  analysisRun      AnalysisRun? @relation(fields: [analysisRunId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@unique([userId, jobDescriptionId, resumeId])
 }

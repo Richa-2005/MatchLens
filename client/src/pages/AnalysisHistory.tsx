@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import  toast  from "react-hot-toast";
+import type { AnalysisListItem, AnalyzeResult } from "@/types/analysis";
 
 import {
   Card,
@@ -13,49 +14,6 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/ui/card";
-
-type AnalysisListItem = {
-  id: string;
-  overallScore: number;
-  probabilityScore: number;
-  createdAt: string;
-  resumeId: string;
-  jobDescriptionId: string;
-  resume: {
-    title: string;
-  };
-  jobDescription: {
-    title: string;
-  };
-};
-
-type AnalyzeResult = {
-  id: string;
-  overallScore: number;
-  probabilityScore: number;
-  skills: {
-    matched: string[];
-    related: string[];
-    missing: string[];
-    highImpactMissing: string[];
-  };
-  signals: {
-    skillOverlap: number;
-    keywordOverlap: number;
-    tfidfSimilarity: number;
-    impactScore: number;
-    relatedSkillBonus: number;
-  };
-  insights: {
-    strengths: string[];
-    issues: string[];
-    tips: string[];
-  };
-  explanation: string[];
-  createdAt: string;
-  resumeId: string | null;
-  jobDescriptionId: string | null;
-};
 
 export default function AnalysisHistory(themeProps: {
   theme: "light" | "dark";

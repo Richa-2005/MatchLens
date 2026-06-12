@@ -1,6 +1,6 @@
 import re
 from textProcessor import normalize_punctuations
-from skills import SKILLS, SECTION_WEIGHTS,RELATED_SKILLS
+from skills import SKILLS, SECTION_WEIGHTS
 
 
 def extract_skills(text):
@@ -41,7 +41,7 @@ def get_weighted_resume_skills(parsed_sections):
 
     return output
     
-def compare_weighted_skills(weighted_resume_skills, job_skills):
+def compare_weighted_skills(weighted_resume_skills, job_skills, related_skills_similarity, related_skills_map):
     matched = set()
     missing = set()
     weighted_sum = 0
@@ -50,24 +50,28 @@ def compare_weighted_skills(weighted_resume_skills, job_skills):
         if skill in weighted_resume_skills:
             matched.add(skill)
             weighted_sum += weighted_resume_skills[skill]
+        elif skill in related_skills_map.keys():
+            related_resume_skill = related_skills_map[skill]
+            similarity = related_skills_similarity.get(skill, 0)
+            weighted_sum += weighted_resume_skills[related_resume_skill] * similarity
         else:
             missing.add(skill)
 
     return matched, missing, weighted_sum
 
-def find_related_skills(resume_skills, job_skills):
-    related = set()
+# def find_related_skills(resume_skills, job_skills):
+#     related = {}
 
-    for job_skill in job_skills:
-        if job_skill in resume_skills:
-            continue
+#     for job_skill in job_skills:
+#         if job_skill in resume_skills:
+#             continue
 
-        if job_skill in RELATED_SKILLS:
-            for rel in RELATED_SKILLS[job_skill]:
-                if rel in resume_skills:
-                    related.add(rel)
+#         if job_skill in RELATED_SKILLS:
+#             for rel in RELATED_SKILLS[job_skill]:
+#                 if rel in resume_skills:
+#                     related[job_skill] = rel
 
-    return related
+#     return related
 
 def count_skill_mentions(text, skill):
     text = normalize_punctuations(text.lower())
@@ -75,23 +79,13 @@ def count_skill_mentions(text, skill):
     return len(re.findall(rf'\b{re.escape(skill)}\b', text))
 
 
-def get_high_impact_missing(job_text, missing_skills, related_skills):
+def get_high_impact_missing(job_text,missing_skills):
     
     score = {}
 
     for skill in missing_skills:
         cnt = count_skill_mentions(job_text,skill)
         score[skill] = cnt
-
-        if skill in RELATED_SKILLS:
-            is_related_covered = False
-            for i in RELATED_SKILLS[skill]:
-                if i in related_skills:
-                    is_related_covered = True
-                    break
-            
-            if is_related_covered == False:
-                score[skill] += 1
     
     sorted_values = [key for key, value in sorted(score.items(), key=lambda item: item[1], reverse=True)]
     return sorted_values
@@ -100,5 +94,5 @@ def calculate_score(weighted_sum, job_skills):
     if len(job_skills) == 0:
         return 0
 
-    weighted_score = weighted_sum / (len(job_skills) * 2.0)
-    return weighted_score
+    weighted_score = weighted_sum / (len(job_skills) * 1.5)
+    return min(float(weighted_score), 1.0)

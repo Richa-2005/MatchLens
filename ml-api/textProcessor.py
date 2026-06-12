@@ -37,14 +37,31 @@ def parse_sections(resume_text):
         matched_section = None
 
         for section in SECTIONS:
-            if line.lower() in SECTIONS[section]:
-                matched_section = section
+            for heading in SECTIONS[section]:
+                lower_line = line.lower()
+
+                if lower_line == heading:
+                    matched_section = section
+                    remaining_text = ""
+                    break
+
+                if lower_line.startswith(heading + ":"):
+                    matched_section = section
+                    remaining_text = line[len(heading) + 1:].strip()
+                    break
+
+            if matched_section:
                 break
 
         if matched_section:
             current_section = matched_section
+
+            if remaining_text:
+                parsed_sections[current_section].append(remaining_text)
+
         elif isHeading(line):
             current_section = "other"
+
         else:
             parsed_sections[current_section].append(line)
 

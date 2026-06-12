@@ -86,15 +86,54 @@ SECTION_WEIGHTS = {
 }
 
 ACTION_WORDS = { "improved", "increased", "reduced", "optimized", "built", "created", 
-                "developed", "automated", "achieved", "led"}
+                "developed", "automated", "achieved", "led", "design", "implement", 
+                "integrate", "deploy", "create"}
 
 SCALE_WORDS = {"users","records","entries","requests","queries","apis","customers",
-               "datasets","models","reports"}
+               "models","reports", "datasets", "performance", "latency", "accuracy", 
+               "system", "platform"}
 
-RELATED_SKILLS = {
-    "python": ["django", "flask", "pandas", "numpy"],
-    "javascript": ["react", "node", "express"],
-    "machine learning": ["scikit-learn", "tensorflow", "pytorch"],
-    "data analysis": ["pandas", "numpy", "excel"],
-    "sql": ["postgresql", "mysql", "sqlite"]
+# RELATED_SKILLS = {
+#     "python": ["django", "flask", "pandas", "numpy"],
+#     "javascript": ["react", "node", "express"],
+#     "machine learning": ["scikit-learn", "tensorflow", "pytorch"],
+#     "data analysis": ["pandas", "numpy", "excel"],
+#     "sql": ["postgresql", "mysql", "sqlite"]
+# }
+
+OUTCOME_WORDS = {
+    "improve", "increase", "reduce", "decrease", "optimize",
+    "boost", "enhance", "accelerate", "automate", "streamline",
+    "save", "cut", "achieve"
+}
+
+METRIC_CONTEXT_WORDS = {
+    "user", "users", "api", "apis", "request", "requests", "endpoint", "endpoints",
+    "ms", "sec", "seconds", "minutes", "hour", "hours", "day", "days",
+    "latency", "accuracy", "performance", "speed", "throughput",
+    "record", "records", "dataset", "datasets", "project", "projects"
+}
+
+
+ROLE_KEYWORDS = {
+    "frontend": {
+        "react", "html", "css", "javascript", "typescript", "tailwind",
+        "ui", "frontend", "components", "hooks", "state", "responsive"
+    },
+    "backend": {
+        "node", "express", "api", "rest api", "sql", "mongodb",
+        "postgresql", "database", "backend", "server", "authentication", "jwt"
+    },
+    "fullstack": {
+        "react", "node", "express", "api", "rest api", "database",
+        "frontend", "backend", "fullstack", "full stack"
+    },
+    "data_science": {
+        "python", "pandas", "numpy", "matplotlib", "data", "dataset",
+        "visualization", "regression", "classification", "analysis"
+    },
+    "machine_learning": {
+        "machine learning", "ml", "model", "scikit-learn", "tensorflow",
+        "pytorch", "training", "prediction", "classification", "regression"
+    },
 }

@@ -7,6 +7,7 @@ import AppShell from "@/components/AppShell";
 import ResumeEditor from "@/components/forms/ResumeEditor";
 import AnalysisResultView from "./modals/AnalysisResultView";
 import  toast  from "react-hot-toast";
+import type { AnalyzeResult } from "@/types/analysis";
 
 import {
   Card,
@@ -18,34 +19,6 @@ import {
 type AnalysisInput = {
   title: string;
   rawText: string;
-};
-
-type AnalyzeResult = {
-  id: string;
-  overallScore: number;
-  probabilityScore: number;
-  skills: {
-    matched: string[];
-    related: string[];
-    missing: string[];
-    highImpactMissing: string[];
-  };
-  signals: {
-    skillOverlap: number;
-    keywordOverlap: number;
-    tfidfSimilarity: number;
-    impactScore: number;
-    relatedSkillBonus: number;
-  };
-  insights: {
-    strengths: string[];
-    issues: string[];
-    tips: string[];
-  };
-  explanation: string[];
-  createdAt: string;
-  resumeId: string | null;
-  jobDescriptionId: string | null;
 };
 
 export default function NewAnalysis(themeProps: {
@@ -286,10 +259,10 @@ export default function NewAnalysis(themeProps: {
                   setAnalyze(false);
                 }
               }}
-              disabled={analyzing || !selectedResumeId || !selectedJobId}
+              disabled={loadingSaved || analyzing || !selectedResumeId || !selectedJobId}
               className="bg-indigo-600 text-white hover:bg-indigo-500"
             >
-              Analyze Saved Pair →
+              {loadingSaved ? "Loading saved items..." : "Analyze Saved Pair →"}
             </Button>
           </CardContent>
         </Card>

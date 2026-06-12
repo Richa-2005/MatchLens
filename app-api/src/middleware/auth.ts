@@ -24,7 +24,7 @@ export const protect = (req : Request ,res : Response,next : NextFunction)  => {
             return next();
         }catch(error){
             console.error(error);
-            res.status(401).json({error:"Not authorized, token failed"});
+            return res.status(401).json({error:"Not authorized, token failed"});
         }
     }
     
